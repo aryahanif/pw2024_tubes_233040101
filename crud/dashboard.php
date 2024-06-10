@@ -1,43 +1,56 @@
 <?php
-// Sertakan file koneksi
-require 'koneksi.php';
+session_start();
+require '../functions/functions.php';
 
-// // Check if the user is logged in
-// if (!isset($_SESSION['email'])) {
-//     // If not logged in, redirect to the login page
-//     header("Location: login.php");
-//     exit();
-// }
+$koneksi = connectDB();
 
-// // Check if the logged-in user is an admin
-// if ($_SESSION['role'] !== 'admin') {
-//     // If the user is not an admin, deny access and redirect to the index page
-//     echo "Access denied. Admins only.";
-//     header("Location: index.php");
-//     exit();
-// }
+if (!isset($_SESSION['email'])) {
+    $_SESSION['alert'] = "Please login to access the dashboard.";
+    header("Location: ../authentication/login.php");
+    exit();
+}
 
-// Tangani form submission untuk menambah buku baru
+if ($_SESSION['role'] !== 'admin') {
+    $_SESSION['alert'] = "Access denied. Admins only.";
+    header("Location: ../index.php");
+    exit();
+}
+
+unset($_SESSION['alert']);
+
+// Handle form submission to add a new book
 if (isset($_POST['submit'])) {
     $judul = $_POST['judul'];
     $deskripsi = $_POST['deskripsi'];
     $penerbit = $_POST['penerbit'];
     $kategori = $_POST['kategori'];
     $gambar = $_FILES['gambar']['name'];
-    move_uploaded_file($_FILES['gambar']['tmp_name'], 'uploads/' . $gambar);
 
-    $sql = "INSERT INTO buku (judul, deskripsi, penerbit, kategori, gambar) VALUES ('$judul', '$deskripsi', '$penerbit', '$kategori', '$gambar')";
-    $koneksi->query($sql);
+    // Move uploaded file to uploads directory
+    $uploadPath = '../uploads/';
+    $fileTmp = $_FILES['gambar']['tmp_name'];
+    $uploadedFile = $uploadPath . $gambar;
+    move_uploaded_file($fileTmp, $uploadedFile);
+
+    // Insert book data into database
+    $sql = "INSERT INTO buku (judul, deskripsi, penerbit, kategori, gambar) VALUES (?, ?, ?, ?, ?)";
+    $stmt = $koneksi->prepare($sql);
+    $stmt->bind_param("sssss", $judul, $deskripsi, $penerbit, $kategori, $gambar);
+    $stmt->execute();
+    $stmt->close();
 
     header('Location: dashboard.php');
     exit();
 }
 
-// Tangani permintaan untuk menghapus buku
+// Handle requests to delete a book
 if (isset($_GET['delete_id'])) {
     $id = $_GET['delete_id'];
-    $sql = "DELETE FROM buku WHERE id = $id";
-    $koneksi->query($sql);
+    $sql = "DELETE FROM buku WHERE id = ?";
+    $stmt = $koneksi->prepare($sql);
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $stmt->close();
 
     header('Location: dashboard.php');
     exit();
@@ -65,7 +78,7 @@ if (isset($_GET['delete_id'])) {
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link btn btn-danger" href="logo">Logout</a>
+                        <a class="nav-link btn btn-danger" href="../authentication/login.php">Logout</a>
                     </li>
                 </ul>
             </div>
@@ -95,7 +108,9 @@ if (isset($_GET['delete_id'])) {
                             </div>
                             <div class="mb-3">
                                 <label for="gambar" class="form-label">Image</label>
-                                <input type="file" class="form-control" id="gambar" name="gambar" accept="image/*" required>
+                                <input type="file" class="form-control" id="gambar" name="gambar" accept="image/*" onchange="previewImage(event)" required>
+                                <!-- Image preview -->
+                                <img id="img-preview" src="#" alt="Preview" style="max-width: 100px; display: none;">
                             </div>
                             <div class="mb-3">
                                 <label for="deskripsi" class="form-label">Description</label>
@@ -148,13 +163,13 @@ if (isset($_GET['delete_id'])) {
                         echo "<tr>";
                         echo "<td>" . $row['id'] . "</td>";
                         echo "<td>" . $row['judul'] . "</td>";
-                        echo "<td><img src='uploads/" . $row['gambar'] . "' style='max-width: 100px;' /></td>";
+                        echo "<td><img src='../uploads/" . $row['gambar'] . "' style='max-width: 100px;' /></td>";
                         echo "<td>" . $row['deskripsi'] . "</td>";
                         echo "<td>" . $row['penerbit'] . "</td>";
                         echo "<td>" . $row['kategori'] . "</td>";
                         echo "<td>";
                         echo "<a href='editdashboard.php?id=" . $row['id'] . "' class='btn btn-primary btn-sm'>Edit</a>";
-                        echo "<a href='dashboard.php?delete_id=" . $row['id'] . "' class='btn btn-danger btn-sm ms-2'>Delete</a>";
+                        echo "<a href='javascript:void(0);' onclick='confirmDelete(" . $row['id'] . ")' class='btn btn-danger btn-sm ms-2'>Delete</a>";
                         echo "</td>";
                         echo "</tr>";
                     }
@@ -165,6 +180,30 @@ if (isset($_GET['delete_id'])) {
             </tbody>
         </table>
     </div>
+
+    <script>
+        // JavaScript function to preview selected image
+        function previewImage(event) {
+            var input = event.target;
+            var reader = new FileReader();
+            reader.onload = function() {
+                var img = document.getElementById('img-preview');
+                img.src = reader.result;
+                img.style.display = 'block'; // Show the preview image
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    </script>
+
+    <script>
+        // JavaScript function to show delete confirmation dialog
+        function confirmDelete(id) {
+            if (confirm('Are you sure you want to delete this book?')) {
+                // If user confirms, redirect to delete URL
+                window.location.href = 'dashboard.php?delete_id=' + id;
+            }
+        }
+    </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
 </body>
