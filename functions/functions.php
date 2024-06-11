@@ -24,7 +24,6 @@ function connectDB()
 function checkLoggedIn()
 {
     if (!isset($_SESSION['email'])) {
-        $_SESSION['alert'] = "Please login to access the dashboard.";
         header("Location: ../authentication/login.php");
         exit();
     }
@@ -138,51 +137,47 @@ function deleteBook($id)
 function handleBookEditing($koneksi)
 {
     $alert_message = '';
-    $row = [];
-    // Check if book ID is provided in the URL
-    if (isset($_GET['id'])) {
-        $book_id = $_GET['id'];
-        // Fetch book details from the database
-        $sql = "SELECT * FROM buku WHERE id = ?";
-        $stmt = $koneksi->prepare($sql);
-        $stmt->bind_param("i", $book_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        if ($result->num_rows > 0) {
-            $row = $result->fetch_assoc();
-        } else {
-            $alert_message = "Book not found.";
-        }
-        $stmt->close();
-    }
 
-    // Check if the form is submitted for updating the book
     if (isset($_POST['submit'])) {
+        $id = $_POST['id'];
         $judul = $_POST['judul'];
         $deskripsi = $_POST['deskripsi'];
         $penerbit = $_POST['penerbit'];
         $kategori = $_POST['kategori'];
         $gambar = $_FILES['gambar']['name'];
-        // Move uploaded file to uploads directory
-        $uploadPath = '../uploads/';
-        $fileTmp = $_FILES['gambar']['tmp_name'];
-        $uploadedFile = $uploadPath . $gambar;
-        move_uploaded_file($fileTmp, $uploadedFile);
-        // Update book data in the database
-        $sql = "UPDATE buku SET judul=?, deskripsi=?, penerbit=?, kategori=?, gambar=? WHERE id=?";
-        $stmt = $koneksi->prepare($sql);
-        $stmt->bind_param("sssssi", $judul, $deskripsi, $penerbit, $kategori, $gambar, $book_id);
-        if ($stmt->execute()) {
-            $alert_message = "Book updated successfully.";
+
+        // Check if a new image is uploaded
+        if (!empty($gambar)) {
+            $uploadPath = '../uploads/';
+            $fileTmp = $_FILES['gambar']['tmp_name'];
+            $uploadedFile = $uploadPath . $gambar;
+            move_uploaded_file($fileTmp, $uploadedFile);
+            
+            // Update book data with new image
+            $sql = "UPDATE buku SET judul = ?, deskripsi = ?, penerbit = ?, kategori = ?, gambar = ? WHERE id = ?";
+            $stmt = $koneksi->prepare($sql);
+            $stmt->bind_param("sssssi", $judul, $deskripsi, $penerbit, $kategori, $gambar, $id);
         } else {
-            $alert_message = "Error updating book: " . $stmt->error;
+            // Update book data without changing the image
+            $sql = "UPDATE buku SET judul = ?, deskripsi = ?, penerbit = ?, kategori = ? WHERE id = ?";
+            $stmt = $koneksi->prepare($sql);
+            $stmt->bind_param("ssssi", $judul, $deskripsi, $penerbit, $kategori, $id);
         }
+
+        if ($stmt->execute()) {
+            // Redirect to dashboard after successful update
+            header('Location: dashboard.php');
+            exit();
+        } else {
+            $alert_message = "Error updating book details. Please try again.";
+        }
+
         $stmt->close();
     }
-    if (!empty($alert_message)) {
-        echo '<div class="alert alert-success">' . $alert_message . '</div>';
-    }
+
+    return $alert_message;
 }
+
 
 // ajax function
 function cari($keyword)

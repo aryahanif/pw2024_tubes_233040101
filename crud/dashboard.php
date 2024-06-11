@@ -78,7 +78,7 @@ if (isset($_GET['delete_id'])) {
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link btn btn-danger" href="../authentication/login.php">Logout</a>
+                        <a class="nav-link btn btn-danger text-white" href="../authentication/login.php">Logout</a>
                     </li>
                 </ul>
             </div>
@@ -87,10 +87,17 @@ if (isset($_GET['delete_id'])) {
 
     <div class="container mt-3">
         <h2 class="text-center">Welcome to Dashboard</h2>
-        <!-- Button trigger modal -->
-        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#exampleModal">
-            Add +
-        </button>
+        <div style="text-align: center;">
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#exampleModal">Add +</button>
+        </div> 
+        
+        <!-- Search Bar -->
+        <div class="mb-3">
+            <form action="dashboard.php" method="get" class="d-flex">
+                <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search" name="search">
+                <button class="btn btn-outline-success" type="submit">Search</button>
+            </form>
+        </div>
 
         <!-- Modal Tambah Buku -->
         <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -157,6 +164,13 @@ if (isset($_GET['delete_id'])) {
                 $query = "SELECT * FROM buku";
                 $result = $koneksi->query($query);
 
+                if (isset($_GET['search']) && !empty($_GET['search'])) {
+                    $search = $_GET['search'];
+                    $query .= " WHERE judul LIKE '%$search%'"; // Filter results based on search query
+                }
+
+                $result = $koneksi->query($query);
+
                 // Tampilkan data dalam tabel
                 if ($result->num_rows > 0) {
                     while ($row = $result->fetch_assoc()) {
@@ -168,8 +182,10 @@ if (isset($_GET['delete_id'])) {
                         echo "<td>" . $row['penerbit'] . "</td>";
                         echo "<td>" . $row['kategori'] . "</td>";
                         echo "<td>";
+                        echo "<div class='btn-group' role='group' aria-label='Action buttons'>";
                         echo "<a href='editdashboard.php?id=" . $row['id'] . "' class='btn btn-primary btn-sm'>Edit</a>";
                         echo "<a href='javascript:void(0);' onclick='confirmDelete(" . $row['id'] . ")' class='btn btn-danger btn-sm ms-2'>Delete</a>";
+                        echo "</div>";
                         echo "</td>";
                         echo "</tr>";
                     }

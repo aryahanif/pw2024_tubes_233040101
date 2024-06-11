@@ -1,6 +1,8 @@
 <?php
 require 'functions/functions.php'; 
 
+checkLoggedIn();
+
 $koneksi = connectDB();
 
 $search = "";
